@@ -4,12 +4,35 @@ import pandas as pd
 
 def solve_shift():
     # --- データ ---
-    employees = ["Aさん", "Bさん", "Cさん", "Dさん", "Eさん"]
+    # 名簿：全員を1つのリストで管理し、属性で区別する
+# in_shift … シフトに入るか / band … 所属バンド（演奏しないなら None）
+    members = [
+        {"name": "Aさん", "in_shift": True,  "band": "バンドX"},   # 両方やる
+        {"name": "Bさん", "in_shift": True,  "band": None},   # 両方やる
+        {"name": "Cさん", "in_shift": True,  "band": None},        # シフトのみ
+        {"name": "Zさん", "in_shift": False, "band": "バンドY"},   # 演奏のみ
+    ]   
     slots = ["午前", "午後", "夕方"]
     roles = ["レジ", "調理"]
     role_demand = {"レジ": 1, "調理": 1}
-    unavailable_pairs = [("Aさん", "午前"), ("Cさん", "夕方")]
+    unavailable_pairs = []
+    band_schedule = {
+        "バンドX": "午後",
+        "バンドY": "夕方",
+    }
 
+    for member in members:
+        if member["band"] and member["in_shift"]:
+            band = member["band"]
+            band_slot = band_schedule[band]
+            unavailable_pairs.append((member["name"], band_slot))
+
+    # シフトに入る人の名前だけを取り出す
+    employees = []
+    for member in members:
+        if member["in_shift"]:
+            employees.append(member["name"])
+    
     # --- モデル ---
     model = cp_model.CpModel()
     x = {}
