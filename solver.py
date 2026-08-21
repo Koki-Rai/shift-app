@@ -1,31 +1,46 @@
 from ortools.sat.python import cp_model
 import pandas as pd
 
-
-def solve_shift():
-    # --- データ ---
-    # 名簿：全員を1つのリストで管理し、属性で区別する
-# in_shift … シフトに入るか
-    members = [
+members = [
         {"name": "Aさん", "in_shift": True},
         {"name": "Bさん", "in_shift": True},
         {"name": "Cさん", "in_shift": True},
+        {"name": "Dさん", "in_shift": True},
+        {"name": "Eさん", "in_shift": True},
         {"name": "Zさん", "in_shift": False},
     ]
-    bands = [
+bands = [
         {
             "band": "バンドX",
-            "slot": "午後",
-            "lineup": [
-                {"name": "Aさん", "instrument": "ギター"},
-            ],
+            "unavailable_slots": ["午前"],
+            "Bj": "Aさん",
+            "Md": "Bさん",
+            "Gt": "Zさん",        # 演奏専門のZさん
+            "Bs": "なし",
+            "Fd": "なし",
+            "Db": "なし",
+            "other": "",
+        },
+        {
+            "band": "バンドY",
+            "unavailable_slots": [],
+            "Bj": "Cさん",
+            "Md": "なし",
+            "Gt": "なし",
+            "Bs": "なし",
+            "Fd": "なし",
+            "Db": "なし",
+            "other": "",
         },
     ]
-    slots = ["午前", "午後", "夕方"]
-    roles = ["レジ", "調理"]
-    role_demand = {"レジ": 1, "調理": 1}
-    unavailable_pairs = []
+    
+slots = ["午前", "午後", "夕方"]
+roles = ["レジ", "調理"]
+role_demand = {"レジ": 1, "調理": 1}
 
+
+def solve_shift(band_placement):
+    unavailable_pairs = []
 
     # シフトに入る人の名前だけを取り出す
     employees = []
@@ -33,13 +48,21 @@ def solve_shift():
         if member["in_shift"]:
             employees.append(member["name"])
     # シフトメンバーのバンド演奏時間をシフト不可にする
-    for band in bands:
-         for player in band["lineup"]:
-            if player["name"] in employees:
-                player_name = player["name"]
-                band_slot = band["slot"]
-                unavailable_pairs.append((player_name, band_slot))
-    
+    # 演奏連動：配置されたバンドの演奏時間に、そのメンバー（シフト参加者）を不可にする
+    instrument_keys = ["Bj", "Md", "Gt", "Bs", "Fd", "Db"]
+    for slot, band_name in band_placement.items():
+        if band_name == "（なし）":
+            continue
+        for band in bands:
+            if band["band"] == band_name:
+                for inst in instrument_keys:
+                    cell = band[inst]
+                    if cell == "なし" or cell == "":
+                        continue
+                    # バグ注意("、"で区切らない場合とか)
+                    for player_name in cell.split("、"):
+                        if player_name in employees:
+                            unavailable_pairs.append((player_name, slot))
     # --- モデル ---
     model = cp_model.CpModel()
     x = {}
